@@ -1,0 +1,86 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/CPU.hdl
+
+/**
+ * The Hack CPU (Central Processing unit), consisting of an ALU,
+ * two registers named A and D, and a program counter named PC.
+ * The CPU is designed to fetch and execute instructions written in 
+ * the Hack machine language. In particular, functions as follows:
+ * Executes the inputted instruction according to the Hack machine 
+ * language specification. The D and A in the language specification
+ * refer to CPU-resident registers, while M refers to the external
+ * memory location addressed by A, i.e. to Memory[A]. The inM input 
+ * holds the value of this location. If the current instruction needs 
+ * to write a value to M, the value is placed in outM, the address 
+ * of the target location is placed in the addressM output, and the 
+ * writeM control bit is asserted. (When writeM==0, any value may 
+ * appear in outM). The outM and writeM outputs are combinational: 
+ * they are affected instantaneously by the execution of the current 
+ * instruction. The addressM and pc outputs are clocked: although they 
+ * are affected by the execution of the current instruction, they commit 
+ * to their new values only in the next time step. If reset==1 then the 
+ * CPU jumps to address 0 (i.e. pc is set to 0 in next time step) rather 
+ * than to the address resulting from executing the current instruction. 
+ */
+
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+
+    //A register should be EITHER output of computation (if C) OR current immediate value (if A)
+    Mux16(a=instruction, b=aluOut, sel=instruction[15], out=aIn);
+    //Write to A register iff this is an A instruction OR dst part of instruction includes A
+    Not(in=instruction[15], out=isA);
+    Or(a=isA, b=instruction[5], out=aLoad);
+    ARegister(in=aIn, load=aLoad, out=aOut, out[0..14]=addressM);
+
+    //Write ALU output to D register if this is a C instruction AND appropriate dst bit is set
+    And(a=instruction[15], b=instruction[4], out=dLoad);
+    DRegister(in=aluOut, load=dLoad, out=dOut);
+
+    //Write ALU output to M register if this is a C instruction AND appropriate dst bit is set
+    And(a=instruction[15], b=instruction[3], out=writeM);
+
+    //second ALU operand is A or M depending on instruction value
+    Mux16(a=aOut, b=inM, sel=instruction[12], out=op2);
+
+    //perform ALU operation on D, A and/or M based on cmp bits
+    ALU(x=dOut, y=op2, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6], out=aluOut, out=outM, zr=zr, ng=ng);
+
+    //should we jump?
+    //use instruction[15] as in because we should NOT jump if this is an A instruction
+    DMux8Way(in=instruction[15], sel=instruction[0..2], a=nojmp, b=jgt, c=jeq, d=jge, e=jlt, f=jne, g=jle, h=jmp);
+
+    //calculate each jump condition
+
+    Not(in=ng, out=ge);
+    Not(in=zr, out=ne);
+    And(a=ge, b=ne, out=gt);
+    Or(a=ng, b=zr, out=le);
+
+    //Bitwise AND of "we want to jump if this condition holds" and "this condition actually holds"
+    //ignore last 8 bits
+    And16(a[0]=nojmp, a[1]=jgt, a[2]=jeq, a[3]=jge, a[4]=jlt, a[5]=jne, a[6]=jle, a[7]=jmp,
+          b[0]=false, b[1]=gt,  b[2]=zr,  b[3]=ge,  b[4]=ng,  b[5]=ne,  b[6]=le,  b[7]=true,
+          out[0..7]=jumpConditions);
+
+    //Jump if any condition is true
+    Or8Way(in=jumpConditions, out=doJump);
+
+    //inc is true b/c it's lowest priority, and there's no case where we shouldn't jump OR reset OR increment
+    PC(in=aOut, load=doJump, inc=true, reset=reset, out[0..14]=pc);
+
+}
