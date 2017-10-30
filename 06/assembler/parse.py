@@ -3,7 +3,7 @@
 import re
 import code
 import enum
-from typing import Union, Iterator, Optional
+from typing import Union, Iterator, Optional, IO
 from collections import deque
 
 class CmdType(enum.Enum):
@@ -11,15 +11,9 @@ class CmdType(enum.Enum):
     C = enum.auto()
     L = enum.auto()
 
-valid_regex = re.compile(r'[_.$:A-Za-z][_.$:]\w]*')
+valid_regex = re.compile(r'[_.$:A-Za-z][_.$:\w]*')
 def valid_symbol(symbol: str) -> bool:
     return (re.match(valid_regex, symbol) is not None)
-
-
-def lines(file_name: str) -> Iterator[str]:
-    with open(file_name, 'r') as f:
-        for line in f:
-            yield line.strip()
 
 class Command:
 
@@ -98,14 +92,29 @@ class CCommand(Command):
 
 
 class Parser:
-    def __init__(self, filename: str) -> None:
-        self.lines: Iterator[str] = lines(filename)
+    def __init__(self, file: IO[str]) -> None:
+        self.file: Iterator[str] = file
+
+    def reset(self):
+        #jump back to start of file
+        self.file.seek(0)
+        self.cmd = None
 
     def advance(self) -> None:
-        cmd_str = next(self.lines)
+        cmd_str = next(self.file).strip()
+
         #skip comments and empty lines
         while (not cmd_str) or cmd_str.startswith("//"):
-            cmd_str = next(self.lines)
+            cmd_str = next(self.file).strip()
+
+        #remove end of line comment if there is one
+        try:
+            cmd_str, _ = cmd_str.split("//")
+            cmd_str = cmd_str.strip()
+        except ValueError:
+            #no comment to remove
+            pass
+
         self.cmd: Command = Command.from_string(cmd_str)
 
     def command_type(self):
