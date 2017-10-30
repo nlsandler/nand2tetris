@@ -27,9 +27,9 @@ class SymbolTable:
         #caller should set address for instruction labels, use next_available for RAM labels
         if not address:
             address = self.next_available #note: no error handling if we've allocated up to SCREEN
+            self.next_available += 1
 
         self.table[symbol] = address
-        self.next_available += 1
         return self.table[symbol]
 
     def contains(self, symbol: str) -> bool:

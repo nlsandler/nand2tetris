@@ -42,7 +42,7 @@ def assemble_command(parser: parse.Parser, table: symbol.SymbolTable) -> str:
 
 def assemble(filename:str ) -> None:
     #get output file name
-    basename, _ = os.path.splitext(os.path.basename(filename))
+    basename, _ = os.path.splitext(filename)
     outfile = basename+".hack"
 
     with open(filename, 'r') as infile, open(outfile, 'w') as out:
