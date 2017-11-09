@@ -15,6 +15,18 @@ CMPS = {
     "eq":"JEQ"
 }
 
+BASE_PTRS = {
+    "local": "LCL",
+    "this": "THIS",
+    "that": "THAT",
+    "argument": "ARG"
+}
+
+BASE_VALS = {
+    "pointer": "3",
+    "temp": "5"
+}
+
 #instructions to push D onto stack and increment SP
 PUSH_D_INSTRUCTIONS = """
     @SP
@@ -82,36 +94,85 @@ class Writer:
 
 
     def write_push_pop(self, command:  parse.Command) -> None:
-        if command.arg1 == "constant":
-            if command.cmd_type == parse.CmdType.PUSH:
+        if command.cmd_type == parse.CmdType.PUSH:
+            #first generate code to get value into D
+            if command.arg1 == "constant":
                 instructions = """//push constant {c}
     @{c}
+    D=A""".format(c=command.arg2)
+            elif command.arg1 in BASE_PTRS:
+                reg = BASE_PTRS[command.arg1]
+                instructions = """//push {segment} {index}
+    @{base}
+    D=M //D holds base address of segment
+    @{index}
+    A=D+A //A holds address of value we want to push
+    D=M //D holds value we want to push""".format(index=command.arg2, segment=command.arg1, base=reg)
+
+            elif command.arg1 in BASE_VALS:
+                base = BASE_VALS[command.arg1]
+                instructions = """//push {segment} {index}
+    @{base}
     D=A
+    @{index}
+    A=D+A //A holds address of value we want to push
+    D=M //D holds value we want to push""".format(index=command.arg2, segment=command.arg1, base=base)
+
+
+            #Now push value in D onto stack
+            instructions += PUSH_D_INSTRUCTIONS
+
+        elif command.cmd_type == parse.CmdType.POP:
+            if command.arg1 in BASE_PTRS:
+                reg = BASE_PTRS[command.arg1]
+                instructions = """//pop {segment} {index}
+
+//calculate value we want to pop to, store in R13
+    @{base}
+    D=M //D holds base address of segment
+    @{index}
+    D=D+A //D holds address we want to write to
+    @R13
+    M=D //store address to write to in R13
+
+//pop top of stack into D
     @SP
+    AM=M-1
+    D=M //D holds top value on stack
+
+//write D to address stored in R13
+    @R13
     A=M
-    M=D
+    M=D""".format(segment=command.arg1, index=command.arg2, base=reg)
+
+            elif command.arg1 in BASE_VALS:
+                base = BASE_VALS[command.arg1]
+
+                instructions = """//pop {segment} {index}
+
+//calculate value we want to pop to, store in R13
+    @{base}
+    D=A //D holds base address of segment
+    @{index}
+    D=D+A //D holds address we want to write to
+    @R13
+    M=D //store address to write to in R13
+
+//pop top of stack into D
     @SP
-    M=M+1""".format(c=command.arg2)
+    AM=M-1
+    D=M //D holds top value on stack
+
+//write D to address stored in R13
+    @R13
+    A=M
+    M=D""".format(segment=command.arg1, index=command.arg2, base=base)                
+
             else:
-                raise RuntimeError("Cannot pop a constant")
-        elif command.arg1 =="local":
-            if command.cmd_type == parse.CmdType.PUSH:
-                instructions = """//push local {index}
-//store LCL+index in R13
-@LCL
-D=M //D holds base address of LCL
-@{index}
-A=D+A //A holds address of value we want to push
-D=M //D holds value we want to push
-@SP
-A=M
-M=D //put value on stack
-//increment stack pointer
-@SP
-M=M+1""".format(index=command.arg2)
+                raise NotImplementedError("segment {}".format(command.arg1))
 
         else:
-            raise NotImplementedError
+            raise RuntimeError("Expected command type push or pop, got {}".format(command.cmd_type))
 
         self.f.write(instructions+"\n")
 
