@@ -80,6 +80,7 @@ class Writer:
     def __init__(self, f: IO[str]) -> None:
         self.f = f
         self.label_ctr = 0
+        self.in_filename = None
 
     def write_arithmetic(self, command: parse.Command) -> None:
         op = command.arg1
@@ -131,52 +132,84 @@ class Writer:
 
 
     def write_push(self, command: parse.Command) -> None:
+        segment = command.arg1
+        index = command.arg2
         #first generate code to get value into D
 
-        if command.arg1 == "constant":
+        if segment == "constant":
             instructions = """//push constant {c}
     @{c}
-    D=A""".format(c=command.arg2)
-        elif command.arg1 in BASE_PTRS:
-            base = BASE_PTRS[command.arg1]
-            instructions = LOAD_INTO_D_INSTRUCTIONS.format(index=command.arg2, 
-                                                                segment=command.arg1, 
+    D=A""".format(c=index)
+        elif segment in BASE_PTRS:
+            base = BASE_PTRS[segment]
+            instructions = LOAD_INTO_D_INSTRUCTIONS.format(index=index, 
+                                                                segment=segment, 
                                                                 base=base, reg="M")
-        elif command.arg1 in BASE_VALS:
-            base = BASE_VALS[command.arg1]
-            instructions = LOAD_INTO_D_INSTRUCTIONS.format(index=command.arg2, 
-                                                                segment=command.arg1, 
+        elif segment in BASE_VALS:
+            base = BASE_VALS[segment]
+            instructions = LOAD_INTO_D_INSTRUCTIONS.format(index=index, 
+                                                                segment=segment, 
                                                                 base=base, reg="A")
+        elif segment == "static":
+            #make sure in_filename is set
+            if not self.in_filename:
+                raise RuntimeError("No input filename set!")
+
+            instructions = """//push static {index}
+    @{filename}.{index}
+    D=M""".format(index=index, filename=self.in_filename)
+
+        else:
+            raise RuntimeError("{} is not a real segment".format(segment))
+
         #Now push value in D onto stack
         instructions += PUSH_D_INSTRUCTIONS
 
         self.f.write(instructions+"\n")
 
     def write_pop(self, command: parse.Command) -> None:
-        if command.arg1 in BASE_PTRS:
-            base = BASE_PTRS[command.arg1]
-            instructions = POP_INSTRUCTIONS.format(index=command.arg2,
-                                                        segment=command.arg1,
+        segment = command.arg1
+        index = command.arg2
+        if segment in BASE_PTRS:
+            base = BASE_PTRS[segment]
+            instructions = POP_INSTRUCTIONS.format(index=index,
+                                                        segment=segment,
                                                         base=base, reg="M")
 
-        elif command.arg1 in BASE_VALS:
-            base = BASE_VALS[command.arg1]
-            instructions = POP_INSTRUCTIONS.format(index=command.arg2,
-                                                        segment=command.arg1,
+        elif segment in BASE_VALS:
+            base = BASE_VALS[segment]
+            instructions = POP_INSTRUCTIONS.format(index=index,
+                                                        segment=segment,
                                                         base=base, reg="A") 
 
-        elif command.arg1 == "constant":
-            raise RuntimeError("Cannot pop a constant")              
+        elif segment == "static":
+            instructions = """//pop static {index}
+    @{filename}.{index}
+    D=A
+    @R13
+    M=D //store address to write to in R13
+
+//pop top of stack into D
+    @SP
+    AM=M-1
+    D=M //D holds top value on stack
+
+//write D to address stored in R13
+    @R13
+    A=M
+    M=D""".format(index=index, filename=self.in_filename)
+
+        elif segment == "constant":
+            raise RuntimeError("Cannot pop a constant")          
 
         else:
-            raise NotImplementedError("segment {}".format(command.arg1))
+            raise NotImplementedError("segment {}".format(segment))
 
         self.f.write(instructions+"\n")           
 
     def write_push_pop(self, command:  parse.Command) -> None:
         if command.cmd_type == parse.CmdType.PUSH:
             self.write_push(command)
-
 
         elif command.cmd_type == parse.CmdType.POP:
             self.write_pop(command)

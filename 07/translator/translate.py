@@ -21,7 +21,9 @@ def translate(vmcode):
         for in_filename in vmfiles:
             with open(in_filename, 'r') as in_file:
                 parser = parse.Parser(in_file)
-                writer.in_filename = in_filename
+                base_infile = os.path.basename(in_filename)
+                base_infile = os.path.splitext(base_infile)[0]
+                writer.in_filename = base_infile
 
                 while True:
                     try:
