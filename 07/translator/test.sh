@@ -8,7 +8,7 @@ done
 
 for i in ../../08/*/*/
 do
-    #./translate.py $i #translate whole directory
+    ./translate.py $i #translate whole directory
     testfile=`basename $i`'.tst'
     echo -n $testfile"    "
     CPUEmulator.sh $i$testfile

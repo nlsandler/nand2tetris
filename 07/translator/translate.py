@@ -13,8 +13,9 @@ def translate(vmcode):
         out_filename = os.path.splitext(vmcode)[0] + ".asm"
     else: 
         #it's a directory, add all .vm files in it
-        vmfiles.extend([f for f in os.listdir(vmcode) if isfile(f) and os.path.splitext(f)[1] == "vm"])
-        out_filename = vmcode.strip("/")+".asm"
+        os.chdir(vmcode)
+        vmfiles.extend([f for f in os.listdir(".") if os.path.isfile(f) and os.path.splitext(f)[1] == ".vm"])
+        out_filename = os.path.basename(vmcode.strip("/"))+".asm"
 
     with open(out_filename, 'w') as out_file:
         writer = gen.Writer(out_file)
