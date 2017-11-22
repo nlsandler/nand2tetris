@@ -24,7 +24,13 @@ class CmdType(enum.Enum):
 EXPECTED_ARGS = {
     CmdType.ARITH: 1,
     CmdType.PUSH: 3,
-    CmdType.POP: 3
+    CmdType.POP: 3,
+    CmdType.FUNCTION: 3,
+    CmdType.CALL: 3,
+    CmdType.RET: 1,
+    CmdType.IF: 2,
+    CmdType.LABEL: 2,
+    CmdType.GOTO: 2
 }
 
 class Command:
@@ -44,12 +50,18 @@ class Command:
             self.cmd_type = CmdType.GOTO
         elif cmd == "if-goto":
             self.cmd_type = CmdType.IF
+        elif cmd == "function":
+            self.cmd_type = CmdType.FUNCTION
+        elif cmd == "call":
+            self.cmd_type = CmdType.CALL
+        elif cmd == "return":
+            self.cmd_type = CmdType.RET
         else:
-            raise NotImplementedError
+            raise ValueError("Unrecognized command {}".format(cmd))
 
         #make sure we have the right number of arguments
-        if len(self.args) != EXPECTED_ARGS.get(self.cmd_type, 2):
-            raise ValueError("Expected {} arguments in command {}, but got {}".format(EXPECTED_ARGS.get(self.cmd_type, 2), cmd_str, len(self.args)))
+        if len(self.args) != EXPECTED_ARGS[self.cmd_type]:
+            raise ValueError("Expected {} arguments in command {}, but got {}".format(EXPECTED_ARGS[self.cmd_type], cmd_str, len(self.args)))
 
     @property
     def arg1(self) -> str:

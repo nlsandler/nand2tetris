@@ -38,6 +38,12 @@ def translate(vmcode):
                             writer.write_goto(cmd)
                         elif cmd.cmd_type == parse.CmdType.IF:
                             writer.write_if(cmd)
+                        elif cmd.cmd_type == parse.CmdType.CALL:
+                            writer.write_call(cmd)
+                        elif cmd.cmd_type == parse.CmdType.FUNCTION:
+                            writer.write_function(cmd)
+                        elif cmd.cmd_type == parse.CmdType.RET:
+                            writer.write_return(cmd)
                         else:
                             writer.write_push_pop(cmd)
                     except StopIteration:
