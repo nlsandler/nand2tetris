@@ -48,6 +48,13 @@ LOAD_INTO_D_INSTRUCTIONS = """
     A=D+A //A holds address of value we want to push
     D=M //D holds value we want to push"""
 
+POP_INTO_D_INSTRUCTIONS ="""
+//pop top of stack into D
+    @SP
+    AM=M-1
+    D=M //D holds top value on stack
+"""
+
 #instructions to pop value into segment[index]
 #for directly memory-mapped segments (pointer, temp), {reg} is A
 #for segments where we only store base ptr (local, argument, this, that),
@@ -62,12 +69,7 @@ POP_INSTRUCTIONS = """
     D=D+A //D holds address we want to write to
     @R13
     M=D //store address to write to in R13
-
-//pop top of stack into D
-    @SP
-    AM=M-1
-    D=M //D holds top value on stack
-
+"""+POP_INTO_D_INSTRUCTIONS+"""
 //write D to address stored in R13
     @R13
     A=M
@@ -216,4 +218,26 @@ class Writer:
 
         else:
             raise RuntimeError("Expected command type push or pop, got {}".format(command.cmd_type))
+
+    def write_label(self, command: parse.Command) -> None:
+        label = command.arg1
+        instruction = "({label})".format(label=label)
+        self.f.write(instruction+"\n")
+
+    def write_goto(self, command: parse.Command) -> None:
+        label = command.arg1
+        instructions = """//goto {label}
+    @{label}
+    0;JMP""".format(label=label)
+        self.f.write(instructions+"\n")
+
+    def write_if(self, command: parse.Command) -> None:
+        label = command.arg1
+        instructions = POP_INTO_D_INSTRUCTIONS + """
+//if-goto {label}
+    @{label}
+    D;JNE""".format(label=label)
+        self.f.write(instructions+"\n")
+
+
 

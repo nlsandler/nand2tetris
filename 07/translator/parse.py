@@ -19,6 +19,8 @@ class CmdType(enum.Enum):
     RET = enum.auto()
     CALL = enum.auto()
 
+# expected # of args, including command itself
+# default is 2 for all commands not listed here
 EXPECTED_ARGS = {
     CmdType.ARITH: 1,
     CmdType.PUSH: 3,
@@ -36,12 +38,18 @@ class Command:
             self.cmd_type = CmdType.PUSH
         elif cmd == "pop":
             self.cmd_type = CmdType.POP
+        elif cmd == "label":
+            self.cmd_type = CmdType.LABEL
+        elif cmd == "goto":
+            self.cmd_type = CmdType.GOTO
+        elif cmd == "if-goto":
+            self.cmd_type = CmdType.IF
         else:
             raise NotImplementedError
 
         #make sure we have the right number of arguments
-        if len(self.args) != EXPECTED_ARGS[self.cmd_type]:
-            raise ValueError("Expected {} arguments in command {}, but got {}".format(EXPECTED_ARGS[self.cmd_type], cmd_str, len(self.args)))
+        if len(self.args) != EXPECTED_ARGS.get(self.cmd_type, 2):
+            raise ValueError("Expected {} arguments in command {}, but got {}".format(EXPECTED_ARGS.get(self.cmd_type, 2), cmd_str, len(self.args)))
 
     @property
     def arg1(self) -> str:

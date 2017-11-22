@@ -31,6 +31,12 @@ def translate(vmcode):
                         cmd = parser.cmd
                         if cmd.cmd_type == parse.CmdType.ARITH:
                             writer.write_arithmetic(cmd)
+                        elif cmd.cmd_type == parse.CmdType.LABEL:
+                            writer.write_label(cmd)
+                        elif cmd.cmd_type == parse.CmdType.GOTO:
+                            writer.write_goto(cmd)
+                        elif cmd.cmd_type == parse.CmdType.IF:
+                            writer.write_if(cmd)
                         else:
                             writer.write_push_pop(cmd)
                     except StopIteration:
