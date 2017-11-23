@@ -257,16 +257,22 @@ class Writer:
     def _push_symbol(self, symbol):
         return """//push {symbol}
     @{symbol}
-    D=A""".format(symbol=symbol) + PUSH_D_INSTRUCTIONS
+    D=M""".format(symbol=symbol) + PUSH_D_INSTRUCTIONS
 
     def write_call(self, command: parse.Command) -> None:
         fun = command.arg1
         n_args = int(command.arg2)
         ret_label = self.label() # autogenerate based on name of current function
-        vals_to_push = [ret_label, "LCL", "ARG", "THIS", "THAT"]
 
-        # generate code to push return address and segment pointers onto the stack
         instructions = "//call {fun} {n_args}".format(fun=fun, n_args=n_args)
+
+        #push ret_label onto stack
+        instructions += """
+    @{ret_label}
+    D=A""".format(ret_label=ret_label) + PUSH_D_INSTRUCTIONS
+
+        # push segment pointers onto stack
+        vals_to_push = ["LCL", "ARG", "THIS", "THAT"]
         for val in vals_to_push:
             instructions += self._push_symbol(val)
 
@@ -316,7 +322,22 @@ class Writer:
         self.label_ctr = 0
 
     def write_return(self, command: parse.Command) -> None:
-        instructions = "//return\n" + POP_INTO_D_INSTRUCTIONS + """
+        instructions = """//return
+//get base address of LCL (i.e. base of stack frame)
+    @LCL
+    D=M // D contains base address of LCL (i.e. base of stack frame)
+    @R13
+    M=D //store frame in R13
+
+//store ret address (stack frame - 5) in R14
+    @5
+    D=A
+    @R13
+    A=M-D
+    D=M //D is *(frame - 5)
+    @R14
+    M=D
+""" + POP_INTO_D_INSTRUCTIONS + """
 //move value from D into arg[0]
     @ARG
     A=M // dereference ARG pointer
@@ -329,13 +350,11 @@ class Writer:
     M=D+1
 
 //restore memory segments from caller
-    @LCL
-    D=M // D contains base address of LCL (i.e. base of stack frame)
+    @1
+    D=A
     @R13
-    M=D //store frame in R13
-
-    A=M-1
-    D=M //D is *(frame-1)
+    A=M-D
+    D=M //D is *(frame - 1)
     @THAT
     M=D //THAT = *(frame-1)
 
@@ -351,7 +370,7 @@ class Writer:
     D=A
     @R13
     A=M-D
-    D=M //D is *(frame - 2)
+    D=M //D is *(frame - 3)
     @ARG
     M=D
 
@@ -359,18 +378,13 @@ class Writer:
     D=A
     @R13
     A=M-D
-    D=M //D is *(frame - 2)
+    D=M //D is *(frame - 4)
     @LCL
     M=D
 
-    @5
-    D=A
-    @R13
-    A=M-D
-    D=M //D is *(frame - 5)
-    A=D
-
 //go to return address
+    @R14
+    A=M
     0;JMP
 """
         self.f.write(instructions)
