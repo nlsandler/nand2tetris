@@ -19,6 +19,7 @@ def translate(vmcode):
 
     with open(out_filename, 'w') as out_file:
         writer = gen.Writer(out_file)
+        writer.write_init()
         for in_filename in vmfiles:
             with open(in_filename, 'r') as in_file:
                 parser = parse.Parser(in_file)

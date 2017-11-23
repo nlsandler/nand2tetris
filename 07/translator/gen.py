@@ -85,7 +85,10 @@ class Writer:
         self.in_filename = None
         self.current_fun: str = None
 
-    def label(self):
+    def write_init(self):
+        pass
+
+    def _label(self):
         if self.current_fun:
             label = "{f}${i}".format(f=self.current_fun, i=self.label_ctr)
         else:
@@ -133,7 +136,7 @@ class Writer:
     D=M
     @SP
     A=M-1
-    M=D""".format(op=op, cmp=comp, label=self.label())
+    M=D""".format(op=op, cmp=comp, label=self._label())
             self.label_ctr += 1
         else:
             raise RuntimeError("Unknown op")
@@ -262,7 +265,7 @@ class Writer:
     def write_call(self, command: parse.Command) -> None:
         fun = command.arg1
         n_args = int(command.arg2)
-        ret_label = self.label() # autogenerate based on name of current function
+        ret_label = self._label() # autogenerate based on name of current function
 
         instructions = "//call {fun} {n_args}".format(fun=fun, n_args=n_args)
 
