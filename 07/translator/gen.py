@@ -75,6 +75,13 @@ POP_INSTRUCTIONS = """
     A=M
     M=D"""
 
+BOOTSTRAP_SP = """
+    @256
+    D=A
+    @SP
+    M=D
+"""
+
 #instructions to pop top of stack into D and decrement SP
 
 class Writer:
@@ -86,7 +93,9 @@ class Writer:
         self.current_fun: str = None
 
     def write_init(self):
-        pass
+        self.f.write(BOOTSTRAP_SP)
+        init_cmd = parse.Command("call Sys.init 0")
+        self.write_call(init_cmd)
 
     def _label(self):
         if self.current_fun:
